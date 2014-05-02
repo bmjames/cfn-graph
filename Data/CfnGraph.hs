@@ -1,10 +1,9 @@
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE RankNTypes #-}
 
-module Main where
+module Data.CfnGraph where
 
 import Control.Applicative
 
@@ -118,17 +117,3 @@ instance Show s => Show (ResourceGraph a s) where
   show (GraphSG is) = "(GraphSG " ++ show is ++ ")"
   show (GraphLB ls hc sgs) =
     unwords ["(GraphLB", show ls, show hc, show sgs] ++ ")" 
-
---------------------------------------------------------------------------------
-myStack :: Resource LoadBalancer
-myStack =
-  LB [httpListener] healthCheck [sshSecGroup]
-
-  where
-    httpListener = Listener 9000 80 HTTP
-    healthCheck  = HealthCheck HTTP 9000 "/management/healthcheck" 5
-    sshSecGroup  = SG [httpIngress]
-    httpIngress  = Ingress TCP 80 9000 (CIp "77.91.248.0" 21)
-
-main :: IO ()
-main = conv myStack >>= print
