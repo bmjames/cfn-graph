@@ -8,7 +8,7 @@ module Data.CfnGraph where
 import Control.Applicative
 
 import Data.ByteString  (ByteString)
-import Data.Map
+import Data.Map         (Map, (!), fromList)
 import Data.Reify
 import Data.Text        (Text)
 import Data.Traversable (traverse)
@@ -49,6 +49,19 @@ data Resource a where
       -> [Resource SecurityGroup]
       -> Resource LoadBalancer
 
+fromResource :: Resource a -> a
+fromResource res = case res of
+  SG ings -> SecurityGroup $ map fromResource ings
+  Ing ip from to src -> Ingress ip from to $ fromResource src
+  IngSrc (ResIpSource cIp) -> IpSource cIp
+  IngSrc (ResSGSource sg) -> SGSource $ fromResource sg
+  LB ls hc sgs -> LoadBalancer ls hc $ map fromResource sgs
+  ASG cap tags lconf lbs ->
+    AutoScalingGroup cap tags (fromResource lconf) (map fromResource lbs)
+  LC key ami udata sgs ->
+    LaunchConfig key ami udata $ map fromResource sgs
+  Stack asgs -> St $ map fromResource asgs
+
 data ResIngressSource a where
   ResIpSource :: CidrIp -> ResIngressSource CidrIp
   ResSGSource :: Resource SecurityGroup -> ResIngressSource SecurityGroup
@@ -87,6 +100,7 @@ data ResourceGraph a s where
           -> ResourceGraph LoadBalancer s
 
   Ref :: ResourceType a -> s -> ResourceGraph a s
+
 
 data IngressSourceGraph a s where
   GraphIpSrc :: CidrIp -> IngressSourceGraph IngressSource s
@@ -171,7 +185,7 @@ conv e = do
 --------------------------------------------------------------------------------
 data Stack = St [AutoScalingGroup]
 
-data AutoScalingGroup = AutoScalingGroup -- TODO
+data AutoScalingGroup = AutoScalingGroup Capacity [Tag] LaunchConfig [LoadBalancer]
 
 data Capacity = Capacity Int Int Int
                 deriving Show
