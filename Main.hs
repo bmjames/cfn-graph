@@ -4,7 +4,6 @@ module Main where
 
 import Data.CfnGraph
 import Data.Map  (toList)
-import Data.Text (Text)
 
 
 myStack :: Resource Stack
@@ -24,17 +23,11 @@ myStack =
     appSecGroup  = SG appIngress
     
     appIngress  = [ Ing TCP 9000 9000 ipSource
-                  , Ing TCP 9000 9000 (fromGroup lbSecGroup)
+                  , Ing TCP 9000 9000 (ResSGSource lbSecGroup)
                   ]
     sshIngress  = Ing TCP 22 22 ipSource
 
-    ipSource = fromIp "77.91.248.0" 21
-
-fromIp :: Text -> Int -> Resource IngressSource
-fromIp ip bits = IngSrc . ResIpSource $ CIp ip bits
-
-fromGroup :: Resource SecurityGroup -> Resource IngressSource
-fromGroup = IngSrc . ResSGSource
+    ipSource = ResIpSource $ CIp "77.91.248.0" 21
 
 main :: IO ()
 main = conv myStack >>= mapM_ print . toList . fst

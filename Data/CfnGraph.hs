@@ -37,10 +37,8 @@ data Resource a where
   Ing :: IpProtocol
       -> Port
       -> Port
-      -> Resource IngressSource
+      -> ResIngressSource
       -> Resource Ingress
-
-  IngSrc :: ResIngressSource a -> Resource IngressSource
 
   SG  :: [Resource Ingress] -> Resource SecurityGroup
 
@@ -49,22 +47,22 @@ data Resource a where
       -> [Resource SecurityGroup]
       -> Resource LoadBalancer
 
+data ResIngressSource where
+  ResIpSource :: CidrIp -> ResIngressSource
+  ResSGSource :: Resource SecurityGroup -> ResIngressSource
+
 fromResource :: Resource a -> a
 fromResource res = case res of
   SG ings -> SecurityGroup $ map fromResource ings
-  Ing ip from to src -> Ingress ip from to $ fromResource src
-  IngSrc (ResIpSource cIp) -> IpSource cIp
-  IngSrc (ResSGSource sg) -> SGSource $ fromResource sg
+  Ing ip from to src -> Ingress ip from to $ case src of
+    ResIpSource cIp -> IpSource cIp
+    ResSGSource sg -> SGSource $ fromResource sg
   LB ls hc sgs -> LoadBalancer ls hc $ map fromResource sgs
   ASG cap tags lconf lbs ->
     AutoScalingGroup cap tags (fromResource lconf) (map fromResource lbs)
   LC key ami udata sgs ->
     LaunchConfig key ami udata $ map fromResource sgs
   Stack asgs -> St $ map fromResource asgs
-
-data ResIngressSource a where
-  ResIpSource :: CidrIp -> ResIngressSource CidrIp
-  ResSGSource :: Resource SecurityGroup -> ResIngressSource SecurityGroup
 
 data ResourceGraph a s where
 
@@ -86,10 +84,8 @@ data ResourceGraph a s where
   GraphIng :: IpProtocol
            -> Port
            -> Port
-           -> ResourceGraph IngressSource s
+           -> IngressSourceGraph s
            -> ResourceGraph Ingress s
-
-  GraphIngSrc :: IngressSourceGraph a s -> ResourceGraph a s
 
   GraphSG :: [ResourceGraph Ingress s]
           -> ResourceGraph SecurityGroup s
@@ -102,10 +98,9 @@ data ResourceGraph a s where
   Ref :: ResourceType a -> s -> ResourceGraph a s
 
 
-data IngressSourceGraph a s where
-  GraphIpSrc :: CidrIp -> IngressSourceGraph IngressSource s
-  GraphSGSrc :: ResourceGraph SecurityGroup s
-             -> IngressSourceGraph IngressSource s
+data IngressSourceGraph s where
+  GraphIpSrc :: CidrIp -> IngressSourceGraph s
+  GraphSGSrc :: ResourceGraph SecurityGroup s -> IngressSourceGraph s
 
 data WrappedGraph s where
   Wrap :: ResourceType a -> ResourceGraph a s -> WrappedGraph s
@@ -121,10 +116,9 @@ instance MuRef (Resource a) where
     mapDeRef' g (SG ings) =
       GraphSG <$> traverse (fmap (Ref IngType) . g) ings
     mapDeRef' g (Ing prot from to source) =
-      GraphIng prot from to <$> (Ref IngSrcType <$> g source)
-    mapDeRef' g (IngSrc src) = GraphIngSrc <$> case src of
-      ResIpSource cIp -> GraphIpSrc <$> pure cIp
-      ResSGSource sg  -> GraphSGSrc <$> (Ref SGType <$> g sg)
+      GraphIng prot from to <$> case source of
+         ResIpSource cIp -> GraphIpSrc <$> pure cIp
+         ResSGSource sg  -> GraphSGSrc <$> (Ref SGType <$> g sg)
     mapDeRef' g (LB ls hc sgs) =
       GraphLB ls hc <$> traverse (fmap (Ref SGType) . g) sgs
     mapDeRef' g (ASG cap tags lconf lbs) =
@@ -140,7 +134,6 @@ data ResourceType a where
   LCType  :: ResourceType LaunchConfig
   LBType  :: ResourceType LoadBalancer
   IngType :: ResourceType Ingress
-  IngSrcType :: ResourceType IngressSource
   SGType  :: ResourceType SecurityGroup
   StType  :: ResourceType Stack
 
@@ -149,7 +142,6 @@ getResourceType st = case st of
   ASG    {} -> ASGType
   LC     {} -> LCType
   Ing    {} -> IngType
-  IngSrc {} -> IngSrcType
   SG     {} -> SGType
   LB     {} -> LBType
   Stack  {} -> StType
@@ -160,7 +152,6 @@ typeEq :: ResourceType a -> ResourceType b -> Maybe (Refl a b)
 typeEq LBType LBType   = Just Refl
 typeEq LCType LCType   = Just Refl
 typeEq IngType IngType = Just Refl
-typeEq IngSrcType IngSrcType = Just Refl
 typeEq SGType SGType   = Just Refl
 typeEq ASGType ASGType = Just Refl
 typeEq StType StType   = Just Refl
@@ -233,7 +224,6 @@ instance Show (ResourceType a) where
   show LCType = "LaunchConfig"
   show ASGType = "AutoScalingGroup"
   show IngType = "Ingress"
-  show IngSrcType = "IngressSource"
   show StType = "Stack"
 
 instance Show (WrappedGraph RefName) where
@@ -251,8 +241,7 @@ instance Show s => Show (ResourceGraph a s) where
     unwords ["(GraphLC", show key, show ami, show udata, show sgs] ++ ")"
   show (GraphIng prot from to source) =
     unwords ["(GraphIng", show prot, show from, show to, show source] ++ ")"
-  show (GraphIngSrc src) = "(GraphIngSrc " ++ show src ++ ")"
 
-instance Show s => Show (IngressSourceGraph a s) where
+instance Show s => Show (IngressSourceGraph s) where
   show (GraphIpSrc cidrIp) = "(GraphIpSrc " ++ show cidrIp ++ ")"
   show (GraphSGSrc sg) = "(GraphSGSrc " ++ show sg ++ ")"
