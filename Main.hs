@@ -12,7 +12,7 @@ myStack = Stack "My Stack" [myAsg]
 
 myAsg = ASG "MyASG" (Capacity 1 2 1) [] launchConf [loadBalancer]
 
-launchConf = LC "MyLaunchConf"
+launchConf = LaunchConfig "MyLaunchConf"
                 "my-key"
                 "ami-foobar"
                 userData
@@ -20,22 +20,22 @@ launchConf = LC "MyLaunchConf"
 
 userData = ("" :: ByteString)
 
-loadBalancer = LB "ELB" [httpListener] healthCheck [lbSecGroup]
+loadBalancer = LoadBalancer "ELB" [httpListener] healthCheck [lbSecGroup]
 
 httpListener = Listener 9000 80 HTTP
 
 healthCheck = HealthCheck HTTP 9000 "/management/healthcheck" 5
 
-sshSecGroup = SG "SSH" [sshIngress]
-lbSecGroup  = SG "ELB" []
-appSecGroup = SG "App" appIngress
+sshSecGroup = SecurityGroup "SSH" [sshIngress]
+lbSecGroup  = SecurityGroup "ELB" []
+appSecGroup = SecurityGroup "App" appIngress
 
-appIngress  = [ ResIngress TCP 9000 9000 ipSource
-              , ResIngress TCP 9000 9000 (ResSGSource lbSecGroup)
+appIngress  = [ Ingress TCP 9000 9000 ipSource
+              , Ingress TCP 9000 9000 (SGSource lbSecGroup)
               ]
-sshIngress  = ResIngress TCP 22 22 ipSource
+sshIngress  = Ingress TCP 22 22 ipSource
 
-ipSource = ResIpSource $ CIp "77.91.248.0" 21
+ipSource = IpSource $ CIp "77.91.248.0" 21
     
 main :: IO ()
 main = conv myStack >>= mapM_ print . toList . fst

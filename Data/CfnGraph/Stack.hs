@@ -1,5 +1,5 @@
 
-module Data.CfnGraph.Base where
+module Data.CfnGraph.Stack where
 
 import Data.Text       (Text)
 import Data.ByteString (ByteString)
@@ -10,10 +10,10 @@ type Description = Text
 type Port        = Int
 type Timeout     = Int
 
-data Stack = St Description [AutoScalingGroup] deriving Show
+data Stack = Stack Description [AutoScalingGroup] deriving Show
 
 data AutoScalingGroup =
-  AutoScalingGroup
+  ASG
     Name
     Capacity
     [Tag]
