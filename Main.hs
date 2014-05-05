@@ -3,6 +3,7 @@
 module Main where
 
 import Data.CfnGraph
+
 import Data.Map  (toList)
 import Data.ByteString (ByteString)
 
