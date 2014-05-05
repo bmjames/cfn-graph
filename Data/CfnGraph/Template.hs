@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Data.CfnGraph.Template where
 
 import Data.Aeson
@@ -17,3 +19,9 @@ data Template =
     (Map Name Resource)
   deriving Show
 
+instance ToJSON Template where
+  toJSON (Template ver desc resources) = object 
+    [ "AWSTemplateFormatVersion" .= ver
+    , "Description" .= desc
+    , "Resources" .= resources
+    ]

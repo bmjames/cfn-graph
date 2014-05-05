@@ -7,8 +7,11 @@
 module Data.CfnGraph.StackGraph where
 
 import Data.CfnGraph.Stack
+import qualified Data.CfnGraph.Template as Template
+
 import Control.Applicative
 
+import Data.Aeson
 import Data.Map         (Map, (!), fromList)
 import Data.Reify
 import Data.Traversable (traverse)
@@ -141,6 +144,14 @@ conv e = do
   let m = fromList l
   return (m, getRef m getResourceType n)
 
+toTemplate :: Stack -> IO Template.Template
+toTemplate stack = do
+  (m, (Just (StackNode desc asgs))) <- conv stack
+  return $ Template.Template "2010-09-09" desc (fromList [])
+
+instance ToJSON (StackGraph a RefName) where
+  toJSON = undefined
+
 --------------------------------------------------------------------------------
 instance Show (ResourceType a) where
   show SGType = "SecurityGroup"
@@ -153,7 +164,7 @@ instance Show (WrappedGraph RefName) where
   show (Wrap t a) = concat ["(", show a, " :: ", show t, ")"]
 
 instance Show s => Show (StackGraph a s) where
-  show (Ref t n)    = unwords ["(Ref", show t, show n] ++ ")"
+  show (Ref t n) = unwords ["(Ref", show t, show n] ++ ")"
   show (SGNode name is) = unwords ["(SGNode", show name, show is] ++ ")"
   show (LBNode name ls hc sgs) =
     unwords ["(LBNode", show name, show ls, show hc, show sgs] ++ ")"

@@ -4,8 +4,11 @@ module Main where
 
 import Data.CfnGraph
 
+import Data.Aeson.Encode.Pretty
 import Data.Map  (toList)
 import Data.ByteString (ByteString)
+
+import qualified Data.ByteString.Lazy.Char8 as BS
 
 
 myStack = Stack "My Stack" [myAsg]
@@ -38,4 +41,4 @@ sshIngress  = Ingress TCP 22 22 ipSource
 ipSource = IpSource $ CIp "77.91.248.0" 21
     
 main :: IO ()
-main = conv myStack >>= mapM_ print . toList . fst
+main = toTemplate myStack >>= BS.putStrLn . encodePretty
